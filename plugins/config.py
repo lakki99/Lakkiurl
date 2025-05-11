@@ -15,9 +15,9 @@ class Config(object):
     API_ID = int(os.environ.get("API_ID", ))
     API_HASH = os.environ.get("API_HASH", "")
 
-    email = os.getenv("EMAIL")
-    password = os.getenv("PASSWORD")
-    
+    email = input("Enter your email: ")
+    password = input("Enter your password: ")
+
     DOWNLOAD_LOCATION = "./DOWNLOADS"
     MAX_FILE_SIZE = 2194304000
     TG_MAX_FILE_SIZE = 2194304000
