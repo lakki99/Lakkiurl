@@ -4,6 +4,7 @@
 
 
 import os
+from plugins.config import Config
 from pyrogram import Client
 
 API_ID = int(os.getenv("API_ID"))
