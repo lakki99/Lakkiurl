@@ -14,6 +14,9 @@ class Config(object):
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
     API_ID = int(os.environ.get("API_ID", ))
     API_HASH = os.environ.get("API_HASH", "")
+
+    email = os.getenv("EMAIL")
+    password = os.getenv("PASSWORD")
     
     DOWNLOAD_LOCATION = "./DOWNLOADS"
     MAX_FILE_SIZE = 2194304000
