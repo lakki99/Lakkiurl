@@ -10,13 +10,12 @@ from plugins.database.database import db
 from plugins.functions.display_progress import humanbytes
 from pyrogram import Client
 
-@Client.on_message(filters.private & filters.command('total'))
+@Client.on_message(filters.command("total") & (filters.private | filters.group))
 async def sts(c, m):
     if m.from_user.id != Config.OWNER_ID:
-        return 
+        return
     total_users = await db.total_users_count()
     await m.reply_text(text=f"<b>Total users:</b> {total_users}", quote=True)
-
 
 @Client.on_message(filters.command('status') & filters.user(Config.OWNER_ID))
 async def status_handler(_, m: Message):
