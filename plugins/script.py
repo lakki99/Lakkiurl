@@ -35,7 +35,7 @@ Usᴇ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ᴛᴏ ᴋɴᴏᴡ ʜᴏᴡ ᴛᴏ ᴜsᴇ ᴍ
 ├💮 **Lᴀɴɢᴜᴀɢᴇ** : <a href=https://www.python.org>Pʏᴛʜᴏɴ 3.13.2</a>
 ├💾 **Dᴀᴛᴀʙᴀsᴇ** : <a href=https://cloud.mongodb.com>MᴏɴɢᴏDB</a>
 ├🚨 **Sᴜᴘᴘᴏʀᴛ Gʀᴏᴜᴘ** : <a href=https://t.me/lakkisbots>Lakki's bots</a>
-├🥏 **Cʜᴀɴɴᴇʟ** : <a href=https://t.me/NT_BOT_CHANNEL>Nᴛ lakki </a>
+├🥏 **Cʜᴀɴɴᴇʟ** : <a href=https://t.me/lakkisbots>Lakki 's bots </a>
 ├👨‍💻 **Cʀᴇᴀᴛᴇʀ** :  @lakkisbots
 ╰───────────────⍟
 """
@@ -126,7 +126,7 @@ Usᴇ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ᴛᴏ ᴋɴᴏᴡ ʜᴏᴡ ᴛᴏ ᴜsᴇ ᴍ
     UPLOAD_START = "📤 Uploading... 📤"
     RCHD_BOT_API_LIMIT = "size greater than maximum allowed size (50MB). Neverthless, trying to upload."
     RCHD_TG_API_LIMIT = "Downloaded in {} seconds.\nDetected File Size: {}\nSorry. But, I cannot upload files greater than 2000MB due to Telegram API limitations."
-    AFTER_SUCCESSFUL_UPLOAD_MSG_WITH_TS = "**𝘛𝘏𝘈𝘕𝘒𝘚 𝘍𝘖𝘙 𝘜𝘚𝘐𝘕𝘎 𝘔𝘌** 🥰"
+    AFTER_SUCCESSFUL_UPLOAD_MSG_WITH_TS = "<a href=https://t.me/lakkisbots>**𝘛𝘏𝘈𝘕𝘒𝘚 𝘍𝘖𝘙 𝘜𝘚𝘐𝘕𝘎 𝘔𝘌** 🥰</a>"
     SAVED_CUSTOM_THUMB_NAIL = "**SAVED THUMBNAIL** ✅"
     DEL_ETED_CUSTOM_THUMB_NAIL = "**DELETED THUMBNAIL** ✅"
     FF_MPEG_DEL_ETED_CUSTOM_MEDIA = "✅ Media cleared succesfully."
