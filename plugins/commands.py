@@ -25,7 +25,7 @@ from pyrogram import types, errors
 
 
 
-@Client.on_message(filters.private & filters.command(["start"]))
+@Client.on_message(filters.command(["start"]) & (filters.private | filters.group))
 async def start(bot, update):
     if Config.UPDATES_CHANNEL is not None:
         fsub = await handle_force_subscribe(bot, update)
