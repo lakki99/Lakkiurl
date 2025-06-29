@@ -22,12 +22,12 @@ class Config(object):
     FREE_USER_MAX_FILE_SIZE = 2194304000
     CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE", 128))
     DEF_THUMB_NAIL_VID_S = os.environ.get("DEF_THUMB_NAIL_VID_S", "https://placehold.it/90x90")
-    HTTP_PROXY = os.environ.get("HTTP_PROXY", "http://139.59.1.14:80")
+    HTTP_PROXY = os.environ.get("HTTP_PROXY", "")
     
     OUO_IO_API_KEY = ""
     MAX_MESSAGE_LENGTH = 4096
     PROCESS_MAX_TIMEOUT = 3600
-    DEF_WATER_MARK_FILE = "@UploaderXNTBot"
+    DEF_WATER_MARK_FILE = "@lakkisbots"
 
     BANNED_USERS = set(int(x) for x in os.environ.get("BANNED_USERS", "").split())
 
