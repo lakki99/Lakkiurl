@@ -8,11 +8,11 @@
 [![GitHub stars](https://img.shields.io/github/stars/LISA-KOREA/UPLOADER-BOT-V4?&style=flat-square&logo=github)](https://github.com/LISA-KOREA/UPLOADER-BOT-V4/stargazers)
 
 #
-<a href="https://github.com/LISA-KOREA"><img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=47000&size=40&pause=1000&color=063EFF&random=false&width=750&lines=WELCOME+TO+URL+UPLOADER+BOT+V4+%F0%9F%9A%80;MADE+BY+%40NT_BOT_CHANNEL+;FOLLOW+ME+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" /></a>
+[![Typing SVG](https://readme-typing-svg.herokuapp.com?font=Fira+Code&pause=1000&color=F70000&multiline=true&width=460&height=60&lines=%F0%9F%92%AB+Thanks+for+supporting+this+project!+Every+%E2%AD%90+and+fork+helps+keep+it+alive.+%F0%9F%99%8C)](https://git.io/typing-svg)
 #
 
 #
-<a href="https://github.com/LISA-KOREA"><img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=47000&size=40&pause=1000&color=FF0000&random=false&width=500&height=55&lines=GIVE+ME+A+STAR" alt="Typing SVG" /></a>
+[![Typing SVG](https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&pause=1000&color=F70000&multiline=true&width=460&height=60&lines=GIVE+ME+A+STAR+%E2%AD%90%EF%B8%8F+)](https://git.io/typing-svg)
 
 #
 
@@ -171,8 +171,7 @@ Check How To Make MONGODB URL or [YouTube](https://youtu.be/VudXkbirhM8?feature=
 - YouTube Channel : [Telegram Bots 🤖](https://youtube.com/@NTBOT?feature=shared)
 - Telegram Channel : [NT Bots ❤️‍🩹](https://t.me/NT_BOT_CHANNEL)
 - Telegram Group : [NT Bots Support 🎗️](https://t.me/NT_BOTS_SUPPORT)
-- URL Uploader Bot : [Uploader Bot 🚀](https://t.me/UploadLinkToFileBot)
-- Its Me : [Lisa 👑](https://t.me/LISA_FAN_LK)
+- URL Uploader Bot : [Uploader 𝕏 Bot](https://t.me/UploaderXNTBot)
 
 
 ### Credits and Thanks to ❤️
