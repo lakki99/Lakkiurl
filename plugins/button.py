@@ -235,36 +235,37 @@ async def youtube_dl_call_back(bot, update):
                     )
                 )
             elif tg_send_type == "vm":
-                width, duration = await Mdata02(download_directory)
-                thumbnail = await Gthumb02(bot, update, duration, download_directory)
-                sent_message = await update.message.reply_video(
-    video=download_directory,
-    caption=description,
-    duration=duration,
-    width=width,
-    height=height,
-    supports_streaming=True,
-    thumb=thumb_image_path,
-    progress=progress_for_pyrogram,
-    progress_args=(
-        Translation.UPLOAD_START,
-        update.message,
-        start_time
-    )
-)
-
-# ✅ Forward to log channel
-if Config.LOG_CHANNEL:
-    try:
-        await bot.copy_message(
-            chat_id=int(Config.LOG_CHANNEL),
-            from_chat_id=sent_message.chat.id,
-            message_id=sent_message.id
+    width, duration = await Mdata02(download_directory)
+    thumbnail = await Gthumb02(bot, update, duration, download_directory)
+    sent_message = await update.message.reply_video(
+        video=download_directory,
+        caption=description,
+        duration=duration,
+        width=width,
+        height=height,
+        supports_streaming=True,
+        thumb=thumbnail,
+        progress=progress_for_pyrogram,
+        progress_args=(
+            Translation.UPLOAD_START,
+            update.message,
+            start_time
         )
-    except Exception as e:
-        logger.error(f"❌ Failed to log to channel: {e}")
-            else:
-                logger.info("✅ " + custom_file_name)
+    )
+
+    # ✅ Forward to log channel
+    if Config.LOG_CHANNEL:
+        try:
+            await bot.copy_message(
+                chat_id=int(Config.LOG_CHANNEL),
+                from_chat_id=sent_message.chat.id,
+                message_id=sent_message.id
+            )
+        except Exception as e:
+            logger.error(f"❌ Failed to log to channel: {e}")
+
+else:
+    logger.info("✅ " + custom_file_name)
             
             end_two = datetime.now()
             time_taken_for_upload = (end_two - end_one).seconds
