@@ -1,46 +1,27 @@
-import logging
-import asyncio
-import json
-import os
-import shutil
-import time
-from datetime import datetime
-from pyrogram import enums
-from pyrogram.types import InputMediaPhoto
-from plugins.config import Config
-from plugins.script import Translation
-from plugins.thumbnail import *
-from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
-from plugins.database.database import db
-from PIL import Image
-from plugins.functions.ran_text import random_char
+import logging import asyncio import json import os import shutil import time from datetime import datetime from pyrogram import enums from pyrogram.types import InputMediaPhoto from plugins.config import Config from plugins.script import Translation from plugins.thumbnail import * from plugins.functions.display_progress import progress_for_pyrogram, humanbytes from plugins.database.database import db from PIL import Image from plugins.functions.ran_text import random_char
 
 cookies_file = 'cookies.txt'
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-logging.getLogger("pyrogram").setLevel(logging.WARNING)
-async def youtube_dl_call_back(bot, update):
-    cb_data = update.data
-    tg_send_type, youtube_dl_format, youtube_dl_ext, ranom = cb_data.split("|")
-    random1 = random_char(5)
+Set up logging
 
-    save_ytdl_json_path = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}.json")
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s') logger = logging.getLogger(name) logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
-    try:
-        with open(save_ytdl_json_path, "r", encoding="utf8") as f:
-            response_json = json.load(f)
-    except FileNotFoundError as e:
-        logger.error(f"JSON file not found: {e}")
-        await update.message.delete()
-        return False
+async def youtube_dl_call_back(bot, update): cb_data = update.data tg_send_type, youtube_dl_format, youtube_dl_ext, ranom = cb_data.split("|") random1 = random_char(5)
 
-    youtube_dl_url = update.message.reply_to_message.text
-    custom_file_name = f"{response_json.get('title')}_{youtube_dl_format}.{youtube_dl_ext}"
-    youtube_dl_username = None
-    youtube_dl_password = None
+save_ytdl_json_path = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}.json")
 
+try:
+    with open(save_ytdl_json_path, "r", encoding="utf8") as f:
+        response_json = json.load(f)
+except FileNotFoundError as e:
+    logger.error(f"JSON file not found: {e}")
+    await update.message.delete()
+    return False
+
+youtube_dl_url = update.message.reply_to_message.text
+custom_file_name = f"{response_json.get('title')}_{youtube_dl_format}.{youtube_dl_ext}"
+youtube_dl_username = None
+youtube_dl_password = None
 
 if "|" in youtube_dl_url:
     url_parts = youtube_dl_url.split("|")
@@ -63,7 +44,6 @@ if "|" in youtube_dl_url:
         youtube_dl_username = youtube_dl_username.strip()
     if youtube_dl_password:
         youtube_dl_password = youtube_dl_password.strip()
-
 else:
     for entity in update.message.reply_to_message.entities:
         if entity.type == "text_link":
@@ -218,7 +198,6 @@ if t_response:
     except Exception as e:
         logger.error(f"Upload error: {e}")
 
-    # ✅ Forward to log channel
     if Config.LOG_CHANNEL and sent_message:
         try:
             await bot.copy_message(
@@ -247,3 +226,4 @@ if t_response:
 
     logger.info(f"✅ Downloaded in: {time_taken_for_download} seconds")
     logger.info(f"✅ Uploaded in: {time_taken_for_upload} seconds")
+
