@@ -5,6 +5,7 @@ import os
 import shutil
 import time
 from datetime import datetime
+from urllib.parse import urlparse, parse_qs
 from pyrogram import enums
 from pyrogram.types import InputMediaPhoto
 from plugins.config import Config
@@ -27,7 +28,7 @@ async def youtube_dl_call_back(bot, update):
         tg_send_type, youtube_dl_format, youtube_dl_ext, ranom = cb_data.split("|")
     except ValueError:
         logger.error("Invalid callback data format")
-        await update.message.delete()
+        await update.message.edit_caption(caption="Invalid callback data. Please try again.")
         return False
 
     save_ytdl_json_path = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}.json")
@@ -38,15 +39,23 @@ async def youtube_dl_call_back(bot, update):
             response_json = json.load(f)
     except FileNotFoundError:
         logger.error(f"JSON file not found: {save_ytdl_json_path}")
-        await update.message.delete()
+        await update.message.edit_caption(caption="Download data not found. Please try again.")
         return False
     except json.JSONDecodeError:
         logger.error(f"Invalid JSON in file: {save_ytdl_json_path}")
-        await update.message.delete()
+        await update.message.edit_caption(caption="Invalid download data. Please try again.")
         return False
 
-    # Parse URL and optional parameters
+    # Parse URL and clean query parameters for YouTube Shorts
     youtube_dl_url = update.message.reply_to_message.text.strip()
+    parsed_url = urlparse(youtube_dl_url)
+    if "youtube.com" in parsed_url.netloc or "youtu.be" in parsed_url.netloc:
+        # Strip query parameters for Shorts
+        if "shorts" in parsed_url.path:
+            youtube_dl_url = f"https://www.youtube.com{parsed_url.path}"
+        else:
+            youtube_dl_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+
     custom_file_name = f"{response_json.get('title', 'video')}_{youtube_dl_format}.{youtube_dl_ext}"
     youtube_dl_username = None
     youtube_dl_password = None
@@ -59,7 +68,6 @@ async def youtube_dl_call_back(bot, update):
         elif len(url_parts) == 4:
             youtube_dl_url, custom_file_name, youtube_dl_username, youtube_dl_password = url_parts
         else:
-            # Extract URL from message entities
             for entity in update.message.reply_to_message.entities:
                 if entity.type == enums.MessageEntityType.TEXT_LINK:
                     youtube_dl_url = entity.url
@@ -75,7 +83,7 @@ async def youtube_dl_call_back(bot, update):
                 youtube_dl_url = youtube_dl_url[o:o + l]
 
     youtube_dl_url = youtube_dl_url.strip()
-    custom_file_name = custom_file_name.strip()
+    custom_file_name = custom_file_name.strip().replace("|", "_")  # Sanitize filename
     if youtube_dl_username:
         youtube_dl_username = youtube_dl_username.strip()
     if youtube_dl_password:
@@ -99,6 +107,7 @@ async def youtube_dl_call_back(bot, update):
         "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
         "--embed-subs",
         "-f", f"{youtube_dl_format}+bestaudio/best" if tg_send_type != "audio" else youtube_dl_format,
+        "--merge-output-format", "mp4",  # Ensure MP4 output for compatibility
         "--cookies", cookies_file,
         "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         youtube_dl_url,
@@ -124,6 +133,14 @@ async def youtube_dl_call_back(bot, update):
     logger.info(f"Executing command: {' '.join(command_to_exec)}")
     start = datetime.now()
 
+    # Check if ffmpeg is available
+    try:
+        await asyncio.create_subprocess_exec("ffmpeg", "-version", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    except FileNotFoundError:
+        logger.error("ffmpeg not found. Required for merging video and audio.")
+        await update.message.edit_caption(caption="Error: ffmpeg is not installed on the server.")
+        return False
+
     # Execute yt-dlp command
     try:
         process = await asyncio.create_subprocess_exec(
@@ -138,11 +155,11 @@ async def youtube_dl_call_back(bot, update):
         logger.info(f"yt-dlp stderr: {e_response}")
 
         if process.returncode != 0:
-            await update.message.edit_caption(caption=f"Error: {e_response or 'yt-dlp failed'}")
+            await update.message.edit_caption(caption=f"Download failed: {e_response or 'Unknown error'}")
             return False
     except Exception as e:
         logger.error(f"Subprocess error: {e}")
-        await update.message.edit_caption(caption=Translation.DOWNLOAD_FAILED)
+        await update.message.edit_caption(caption=f"Download failed: {str(e)}")
         return False
 
     # Clean up JSON file
@@ -154,10 +171,13 @@ async def youtube_dl_call_back(bot, update):
     end_one = datetime.now()
     time_taken_for_download = (end_one - start).seconds
 
-    # Check if file exists, try fallback extension
+    # Check if file exists, try fallback extensions
     if not os.path.isfile(download_directory):
-        download_directory = os.path.splitext(download_directory)[0] + ".mkv"
-        if not os.path.isfile(download_directory):
+        for ext in [".mp4", ".mkv", ".webm"]:
+            download_directory = os.path.splitext(download_directory)[0] + ext
+            if os.path.isfile(download_directory):
+                break
+        else:
             await update.message.edit_caption(caption=Translation.DOWNLOAD_FAILED)
             return False
 
@@ -191,7 +211,7 @@ async def youtube_dl_call_back(bot, update):
             )
         elif tg_send_type == "vm":
             width, duration = await Mdata02(download_directory)
-            height = 720  # Placeholder; replace with actual height from Mdata02 if available
+            height = 720  # Replace with actual height from Mdata02 if available
             thumbnail = await Gthumb02(bot, update, duration, download_directory)
             sent_message = await update.message.reply_video(
                 video=download_directory,
