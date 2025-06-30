@@ -1,41 +1,77 @@
-import logging import asyncio import json import os import shutil import time from datetime import datetime from pyrogram import enums from pyrogram.types import InputMediaPhoto from plugins.config import Config from plugins.script import Translation from plugins.thumbnail import * from plugins.functions.display_progress import progress_for_pyrogram, humanbytes from plugins.database.database import db from PIL import Image from plugins.functions.ran_text import random_char
+import logging
+import asyncio
+import json
+import os
+import shutil
+import time
+from datetime import datetime
+from pyrogram import enums
+from pyrogram.types import InputMediaPhoto
+from plugins.config import Config
+from plugins.script import Translation
+from plugins.thumbnail import Mdata01, Mdata02, Mdata03, Gthumb01, Gthumb02
+from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
+from plugins.database.database import db
+from plugins.functions.ran_text import random_char
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 cookies_file = 'cookies.txt'
 
-Set up logging
+async def youtube_dl_call_back(bot, update):
+    cb_data = update.data
+    try:
+        tg_send_type, youtube_dl_format, youtube_dl_ext, ranom = cb_data.split("|")
+    except ValueError:
+        logger.error("Invalid callback data format")
+        await update.message.delete()
+        return False
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s') logger = logging.getLogger(name) logging.getLogger("pyrogram").setLevel(logging.WARNING)
+    save_ytdl_json_path = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}.json")
 
-async def youtube_dl_call_back(bot, update): cb_data = update.data tg_send_type, youtube_dl_format, youtube_dl_ext, ranom = cb_data.split("|") random1 = random_char(5)
+    # Load JSON response
+    try:
+        with open(save_ytdl_json_path, "r", encoding="utf8") as f:
+            response_json = json.load(f)
+    except FileNotFoundError:
+        logger.error(f"JSON file not found: {save_ytdl_json_path}")
+        await update.message.delete()
+        return False
+    except json.JSONDecodeError:
+        logger.error(f"Invalid JSON in file: {save_ytdl_json_path}")
+        await update.message.delete()
+        return False
 
-save_ytdl_json_path = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}.json")
+    # Parse URL and optional parameters
+    youtube_dl_url = update.message.reply_to_message.text.strip()
+    custom_file_name = f"{response_json.get('title', 'video')}_{youtube_dl_format}.{youtube_dl_ext}"
+    youtube_dl_username = None
+    youtube_dl_password = None
 
-try:
-    with open(save_ytdl_json_path, "r", encoding="utf8") as f:
-        response_json = json.load(f)
-except FileNotFoundError as e:
-    logger.error(f"JSON file not found: {e}")
-    await update.message.delete()
-    return False
-
-youtube_dl_url = update.message.reply_to_message.text
-custom_file_name = f"{response_json.get('title')}_{youtube_dl_format}.{youtube_dl_ext}"
-youtube_dl_username = None
-youtube_dl_password = None
-
-if "|" in youtube_dl_url:
-    url_parts = youtube_dl_url.split("|")
-    if len(url_parts) == 2:
-        youtube_dl_url, custom_file_name = url_parts
-    elif len(url_parts) == 4:
-        youtube_dl_url, custom_file_name, youtube_dl_username, youtube_dl_password = url_parts
+    # Handle URL with additional parameters
+    if "|" in youtube_dl_url:
+        url_parts = youtube_dl_url.split("|")
+        if len(url_parts) == 2:
+            youtube_dl_url, custom_file_name = url_parts
+        elif len(url_parts) == 4:
+            youtube_dl_url, custom_file_name, youtube_dl_username, youtube_dl_password = url_parts
+        else:
+            # Extract URL from message entities
+            for entity in update.message.reply_to_message.entities:
+                if entity.type == enums.MessageEntityType.TEXT_LINK:
+                    youtube_dl_url = entity.url
+                elif entity.type == enums.MessageEntityType.URL:
+                    o, l = entity.offset, entity.length
+                    youtube_dl_url = youtube_dl_url[o:o + l]
     else:
         for entity in update.message.reply_to_message.entities:
-            if entity.type == "text_link":
+            if entity.type == enums.MessageEntityType.TEXT_LINK:
                 youtube_dl_url = entity.url
-            elif entity.type == "url":
-                o = entity.offset
-                l = entity.length
+            elif entity.type == enums.MessageEntityType.URL:
+                o, l = entity.offset, entity.length
                 youtube_dl_url = youtube_dl_url[o:o + l]
 
     youtube_dl_url = youtube_dl_url.strip()
@@ -44,78 +80,72 @@ if "|" in youtube_dl_url:
         youtube_dl_username = youtube_dl_username.strip()
     if youtube_dl_password:
         youtube_dl_password = youtube_dl_password.strip()
-else:
-    for entity in update.message.reply_to_message.entities:
-        if entity.type == "text_link":
-            youtube_dl_url = entity.url
-        elif entity.type == "url":
-            o = entity.offset
-            l = entity.length
-            youtube_dl_url = youtube_dl_url[o:o + l]
 
-await update.message.edit_caption(
-    caption=Translation.DOWNLOAD_START.format(custom_file_name)
-)
+    # Update message to indicate download start
+    await update.message.edit_caption(caption=Translation.DOWNLOAD_START.format(custom_file_name))
 
-description = Translation.CUSTOM_CAPTION_UL_FILE
-if "fulltitle" in response_json:
-    description = response_json["fulltitle"][0:1021]
+    # Prepare description
+    description = response_json.get("fulltitle", Translation.CUSTOM_CAPTION_UL_FILE)[:1021]
 
-tmp_directory_for_each_user = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{random1}")
-os.makedirs(tmp_directory_for_each_user, exist_ok=True)
-download_directory = os.path.join(tmp_directory_for_each_user, custom_file_name)
+    # Create temporary directory
+    tmp_directory_for_each_user = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}")
+    os.makedirs(tmp_directory_for_each_user, exist_ok=True)
+    download_directory = os.path.join(tmp_directory_for_each_user, custom_file_name)
 
-command_to_exec = [
-    "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
-    "--embed-subs", "-f", f"{youtube_dl_format}bestvideo+bestaudio/best",
-    "--hls-prefer-ffmpeg", "--cookies", cookies_file,
-    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-    youtube_dl_url, "-o", download_directory
-]
-
-if tg_send_type == "audio":
+    # Build yt-dlp command
     command_to_exec = [
-        "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
-        "--bidi-workaround", "--extract-audio",
-        "--cookies", cookies_file, "--audio-format", youtube_dl_ext,
-        "--audio-quality", youtube_dl_format,
+        "yt-dlp",
+        "-c",
+        "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
+        "--embed-subs",
+        "-f", f"{youtube_dl_format}+bestaudio/best" if tg_send_type != "audio" else youtube_dl_format,
+        "--cookies", cookies_file,
         "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        youtube_dl_url, "-o", download_directory
+        youtube_dl_url,
+        "-o", download_directory
     ]
 
-if Config.HTTP_PROXY:
-    command_to_exec.extend(["--proxy", Config.HTTP_PROXY])
-if youtube_dl_username:
-    command_to_exec.extend(["--username", youtube_dl_username])
-if youtube_dl_password:
-    command_to_exec.extend(["--password", youtube_dl_password])
+    if tg_send_type == "audio":
+        command_to_exec.extend([
+            "--extract-audio",
+            "--audio-format", youtube_dl_ext,
+            "--audio-quality", youtube_dl_format
+        ])
 
-command_to_exec.append("--no-warnings")
+    if Config.HTTP_PROXY:
+        command_to_exec.extend(["--proxy", Config.HTTP_PROXY])
+    if youtube_dl_username:
+        command_to_exec.extend(["--username", youtube_dl_username])
+    if youtube_dl_password:
+        command_to_exec.extend(["--password", youtube_dl_password])
 
-logger.info(command_to_exec)
-start = datetime.now()
+    command_to_exec.append("--no-warnings")
 
-process = await asyncio.create_subprocess_exec(
-    *command_to_exec,
-    stdout=asyncio.subprocess.PIPE,
-    stderr=asyncio.subprocess.PIPE,
-)
+    logger.info(f"Executing command: {' '.join(command_to_exec)}")
+    start = datetime.now()
 
-stdout, stderr = await process.communicate()
-e_response = stderr.decode().strip()
-t_response = stdout.decode().strip()
-logger.info(e_response)
-logger.info(t_response)
+    # Execute yt-dlp command
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *command_to_exec,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        e_response = stderr.decode().strip()
+        t_response = stdout.decode().strip()
+        logger.info(f"yt-dlp stdout: {t_response}")
+        logger.info(f"yt-dlp stderr: {e_response}")
 
-if process.returncode != 0:
-    await update.message.edit_caption(caption=f"Error: {e_response}")
-    return False
+        if process.returncode != 0:
+            await update.message.edit_caption(caption=f"Error: {e_response or 'yt-dlp failed'}")
+            return False
+    except Exception as e:
+        logger.error(f"Subprocess error: {e}")
+        await update.message.edit_caption(caption=Translation.DOWNLOAD_FAILED)
+        return False
 
-if "**Invalid link !**" in e_response:
-    await update.message.edit_caption(caption=e_response.replace("**Invalid link !**", ""))
-    return False
-
-if t_response:
+    # Clean up JSON file
     try:
         os.remove(save_ytdl_json_path)
     except FileNotFoundError:
@@ -124,28 +154,29 @@ if t_response:
     end_one = datetime.now()
     time_taken_for_download = (end_one - start).seconds
 
+    # Check if file exists, try fallback extension
     if not os.path.isfile(download_directory):
         download_directory = os.path.splitext(download_directory)[0] + ".mkv"
         if not os.path.isfile(download_directory):
             await update.message.edit_caption(caption=Translation.DOWNLOAD_FAILED)
             return False
 
+    # Check file size
     file_size = os.stat(download_directory).st_size
-
     if file_size > Config.TG_MAX_FILE_SIZE:
         await update.message.edit_caption(
             caption=Translation.RCHD_TG_API_LIMIT.format(time_taken_for_download, humanbytes(file_size))
         )
-        return
+        return False
 
-    await update.message.edit_caption(
-        caption=Translation.UPLOAD_START.format(custom_file_name)
-    )
+    # Update message to indicate upload start
+    await update.message.edit_caption(caption=Translation.UPLOAD_START.format(custom_file_name))
 
     start_time = time.time()
     sent_message = None
     thumbnail = None
 
+    # Upload file based on send type
     try:
         if tg_send_type == "audio":
             duration = await Mdata03(download_directory)
@@ -160,6 +191,7 @@ if t_response:
             )
         elif tg_send_type == "vm":
             width, duration = await Mdata02(download_directory)
+            height = 720  # Placeholder; replace with actual height from Mdata02 if available
             thumbnail = await Gthumb02(bot, update, duration, download_directory)
             sent_message = await update.message.reply_video(
                 video=download_directory,
@@ -173,15 +205,6 @@ if t_response:
                 progress_args=(Translation.UPLOAD_START, update.message, start_time)
             )
         elif await db.get_upload_as_doc(update.from_user.id) is False:
-            thumbnail = await Gthumb01(bot, update)
-            sent_message = await update.message.reply_document(
-                document=download_directory,
-                thumb=thumbnail,
-                caption=description,
-                progress=progress_for_pyrogram,
-                progress_args=(Translation.UPLOAD_START, update.message, start_time)
-            )
-        else:
             width, height, duration = await Mdata01(download_directory)
             thumbnail = await Gthumb02(bot, update, duration, download_directory)
             sent_message = await update.message.reply_video(
@@ -195,9 +218,21 @@ if t_response:
                 progress=progress_for_pyrogram,
                 progress_args=(Translation.UPLOAD_START, update.message, start_time)
             )
+        else:
+            thumbnail = await Gthumb01(bot, update)
+            sent_message = await update.message.reply_document(
+                document=download_directory,
+                thumb=thumbnail,
+                caption=description,
+                progress=progress_for_pyrogram,
+                progress_args=(Translation.UPLOAD_START, update.message, start_time)
+            )
     except Exception as e:
         logger.error(f"Upload error: {e}")
+        await update.message.edit_caption(caption=f"Upload failed: {str(e)}")
+        return False
 
+    # Forward to log channel
     if Config.LOG_CHANNEL and sent_message:
         try:
             await bot.copy_message(
@@ -206,24 +241,26 @@ if t_response:
                 message_id=sent_message.id
             )
         except Exception as e:
-            logger.error(f"❌ Failed to log to channel: {e}")
+            logger.error(f"Failed to log to channel: {e}")
 
     end_two = datetime.now()
     time_taken_for_upload = (end_two - end_one).seconds
 
+    # Clean up
     try:
-        shutil.rmtree(tmp_directory_for_each_user)
+        shutil.rmtree(tmp_directory_for_each_user, ignore_errors=True)
         if thumbnail and os.path.exists(thumbnail):
             os.remove(thumbnail)
     except Exception as e:
-        logger.error(f"Error cleaning up: {e}")
+        logger.error(f"Cleanup error: {e}")
 
+    # Update message with success status
     await update.message.edit_caption(
         caption=Translation.AFTER_SUCCESSFUL_UPLOAD_MSG_WITH_TS.format(
             time_taken_for_download, time_taken_for_upload
         )
     )
 
-    logger.info(f"✅ Downloaded in: {time_taken_for_download} seconds")
-    logger.info(f"✅ Uploaded in: {time_taken_for_upload} seconds")
-
+    logger.info(f"Downloaded in: {time_taken_for_download} seconds")
+    logger.info(f"Uploaded in: {time_taken_for_upload} seconds")
+    return True
