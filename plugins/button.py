@@ -22,23 +22,26 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 logger = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 async def youtube_dl_call_back(bot, update):
+async def youtube_dl_call_back(bot, update):
     cb_data = update.data
     tg_send_type, youtube_dl_format, youtube_dl_ext, ranom = cb_data.split("|")
     random1 = random_char(5)
-save_ytdl_json_path = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}.json")
 
-try:
-    with open(save_ytdl_json_path, "r", encoding="utf8") as f:
-        response_json = json.load(f)
-except FileNotFoundError as e:
-    logger.error(f"JSON file not found: {e}")
-    await update.message.delete()
-    return False
+    save_ytdl_json_path = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}.json")
 
-youtube_dl_url = update.message.reply_to_message.text
-custom_file_name = f"{response_json.get('title')}_{youtube_dl_format}.{youtube_dl_ext}"
-youtube_dl_username = None
-youtube_dl_password = None
+    try:
+        with open(save_ytdl_json_path, "r", encoding="utf8") as f:
+            response_json = json.load(f)
+    except FileNotFoundError as e:
+        logger.error(f"JSON file not found: {e}")
+        await update.message.delete()
+        return False
+
+    youtube_dl_url = update.message.reply_to_message.text
+    custom_file_name = f"{response_json.get('title')}_{youtube_dl_format}.{youtube_dl_ext}"
+    youtube_dl_username = None
+    youtube_dl_password = None
+
 
 if "|" in youtube_dl_url:
     url_parts = youtube_dl_url.split("|")
