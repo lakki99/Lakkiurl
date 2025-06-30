@@ -5,7 +5,7 @@ import os
 import shutil
 import time
 from datetime import datetime
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 from pyrogram import enums
 from pyrogram.types import InputMediaPhoto
 from plugins.config import Config
@@ -50,13 +50,9 @@ async def youtube_dl_call_back(bot, update):
     youtube_dl_url = update.message.reply_to_message.text.strip()
     parsed_url = urlparse(youtube_dl_url)
     if "youtube.com" in parsed_url.netloc or "youtu.be" in parsed_url.netloc:
-        # Strip query parameters for Shorts
-        if "shorts" in parsed_url.path:
-            youtube_dl_url = f"https://www.youtube.com{parsed_url.path}"
-        else:
-            youtube_dl_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+        youtube_dl_url = f"https://www.youtube.com{parsed_url.path}"
 
-    custom_file_name = f"{response_json.get('title', 'video')}_{youtube_dl_format}.{youtube_dl_ext}"
+    custom_file_name = f"{response_json.get('title', 'video')}_{youtube_dl_format}.{youtube_dl_ext}".replace("|", "_")
     youtube_dl_username = None
     youtube_dl_password = None
 
@@ -83,7 +79,7 @@ async def youtube_dl_call_back(bot, update):
                 youtube_dl_url = youtube_dl_url[o:o + l]
 
     youtube_dl_url = youtube_dl_url.strip()
-    custom_file_name = custom_file_name.strip().replace("|", "_")  # Sanitize filename
+    custom_file_name = custom_file_name.strip().replace("|", "_")
     if youtube_dl_username:
         youtube_dl_username = youtube_dl_username.strip()
     if youtube_dl_password:
@@ -100,14 +96,27 @@ async def youtube_dl_call_back(bot, update):
     os.makedirs(tmp_directory_for_each_user, exist_ok=True)
     download_directory = os.path.join(tmp_directory_for_each_user, custom_file_name)
 
+    # Check if ffmpeg is available for video downloads
+    ffmpeg_available = True
+    if tg_send_type != "audio":
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "ffmpeg", "-version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await process.communicate()
+        except FileNotFoundError:
+            logger.warning("ffmpeg not found. Falling back to single stream format.")
+            ffmpeg_available = False
+
     # Build yt-dlp command
     command_to_exec = [
         "yt-dlp",
         "-c",
         "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
         "--embed-subs",
-        "-f", f"{youtube_dl_format}+bestaudio/best" if tg_send_type != "audio" else youtube_dl_format,
-        "--merge-output-format", "mp4",  # Ensure MP4 output for compatibility
+        "-f", f"{youtube_dl_format}+bestaudio/best" if ffmpeg_available and tg_send_type != "audio" else "best",
         "--cookies", cookies_file,
         "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         youtube_dl_url,
@@ -120,6 +129,8 @@ async def youtube_dl_call_back(bot, update):
             "--audio-format", youtube_dl_ext,
             "--audio-quality", youtube_dl_format
         ])
+    elif ffmpeg_available:
+        command_to_exec.extend(["--merge-output-format", "mp4"])
 
     if Config.HTTP_PROXY:
         command_to_exec.extend(["--proxy", Config.HTTP_PROXY])
@@ -132,14 +143,6 @@ async def youtube_dl_call_back(bot, update):
 
     logger.info(f"Executing command: {' '.join(command_to_exec)}")
     start = datetime.now()
-
-    # Check if ffmpeg is available
-    try:
-        await asyncio.create_subprocess_exec("ffmpeg", "-version", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    except FileNotFoundError:
-        logger.error("ffmpeg not found. Required for merging video and audio.")
-        await update.message.edit_caption(caption="Error: ffmpeg is not installed on the server.")
-        return False
 
     # Execute yt-dlp command
     try:
