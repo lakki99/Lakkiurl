@@ -17,10 +17,10 @@ from plugins.functions.ran_text import random_char
 
 cookies_file = 'cookies.txt'
 
-Set up logging
-
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s') logger = logging.getLogger(name) logging.getLogger("pyrogram").setLevel(logging.WARNING)
-
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logging.getLogger("pyrogram").setLevel(logging.WARNING)
 async def youtube_dl_call_back(bot, update): cb_data = update.data tg_send_type, youtube_dl_format, youtube_dl_ext, ranom = cb_data.split("|") random1 = random_char(5)
 
 save_ytdl_json_path = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}.json")
