@@ -250,24 +250,23 @@ async def youtube_dl_call_back(bot, update):
                         Translation.UPLOAD_START,
                         update.message,
                         start_time
-                   )
-                 )
+                    )
+                )
 
                 # ✅ Forward to log channel
                 if Config.LOG_CHANNEL:
-                   try:
-                      await bot.copy_message(
-          chat_id=int(Config.LOG_CHANNEL),
-                
-          from_chat_id=sent_message.chat.id,
-          message_id=sent_message.id
-                      )
-           except Exception as e:
-                      logger.error(f"❌ Failed to log to channel: {e}")
+                    try:
+                        await bot.copy_message(
+                            chat_id=int(Config.LOG_CHANNEL),
+                            from_chat_id=sent_message.chat.id,
+                            message_id=sent_message.id
+                        )
+                    except Exception as e:
+                        logger.error(f"❌ Failed to log to channel: {e}")
 
-else:
-    logger.info("✅ " + custom_file_name)
-            
+            else:
+                logger.info("✅ " + custom_file_name)
+
             end_two = datetime.now()
             time_taken_for_upload = (end_two - end_one).seconds
             try:
@@ -275,10 +274,12 @@ else:
                 os.remove(thumbnail)
             except Exception as e:
                 logger.error(f"Error cleaning up: {e}")
-            
+
             await update.message.edit_caption(
-                caption=Translation.AFTER_SUCCESSFUL_UPLOAD_MSG_WITH_TS.format(time_taken_for_download, time_taken_for_upload)
+                caption=Translation.AFTER_SUCCESSFUL_UPLOAD_MSG_WITH_TS.format(
+                    time_taken_for_download, time_taken_for_upload
+                )
             )
-            
+
             logger.info(f"✅ Downloaded in: {time_taken_for_download} seconds")
             logger.info(f"✅ Uploaded in: {time_taken_for_upload} seconds")
