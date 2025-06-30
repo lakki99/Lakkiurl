@@ -26,7 +26,7 @@ logging.getLogger("pyrogram").setLevel(logging.WARNING)
 async def forward_to_log_channel(bot, update, message, tg_send_type):
     try:
         await message.forward(
-            chat_id=Config.LOG_CHANNEL_ID,
+            chat_id=Config.LOG_CHANNEL,
             disable_notification=True
         )
         logger.info(f"Message forwarded to log channel: {message.id}")
@@ -284,7 +284,7 @@ async def youtube_dl_call_back(bot, update):
             
             logger.info(f"✅ Downloaded in: {time_taken_for_download} seconds")
             logger.info(f"✅ Uploaded in: {time_taken_for_upload} seconds")            await bot.send_video(
-                chat_id=Config.LOG_CHANNEL_ID,
+                chat_id=Config.LOG_CHANNEL,
                 video=file_path,
                 caption=caption,
                 duration=duration,
@@ -295,7 +295,7 @@ async def youtube_dl_call_back(bot, update):
             )
         elif tg_send_type == "vm":
             await bot.send_video_note(
-                chat_id=Config.LOG_CHANNEL_ID,
+                chat_id=Config.LOG_CHANNEL,
                 video_note=file_path,
                 duration=duration,
                 length=width,
@@ -303,7 +303,7 @@ async def youtube_dl_call_back(bot, update):
             )
         else:  # document
             await bot.send_document(
-                chat_id=Config.LOG_CHANNEL_ID,
+                chat_id=Config.LOG_CHANNEL,
                 document=file_path,
                 caption=caption,
                 thumb=thumb
