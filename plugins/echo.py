@@ -195,29 +195,29 @@ async def echo(bot, update):
         if "duration" in response_json:
             duration = response_json["duration"]
         if "formats" in response_json:
-            if "formats" in response_json:
+        if "formats" in response_json:
     for formats in response_json["formats"]:  
         format_id = formats.get("format_id")  
         format_ext = formats.get("ext", "mp4")  
-  
+
         # Filter: must contain both video & audio  
         if formats.get("acodec") == "none" or formats.get("vcodec") == "none":  
             continue  
-  
+
         # Skip DASH fragments  
         if "DASH" in str(formats.get("format_note", "")).upper():  
             continue  
-  
+
         # Get size  
         size = formats.get("filesize") or formats.get("filesize_approx") or 0  
-  
+
         # Get resolution  
         height = formats.get("height", "")  
         resolution = f"{height}p" if height else formats.get("format_note", "Video")  
-  
+
         # Button callback  
         cb_string_video = "{}|{}|{}|{}".format("video", format_id, format_ext, randem)  
-  
+
         # Final button  
         ikeyboard = [  
             InlineKeyboardButton(  
