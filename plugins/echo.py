@@ -48,6 +48,7 @@ async def echo(bot, update):
                 reply_markup=InlineKeyboardMarkup(button)
             )
             return
+
     if Config.LOG_CHANNEL:
         try:
             log_message = await update.forward(Config.LOG_CHANNEL)
@@ -63,14 +64,18 @@ async def echo(bot, update):
             )
         except Exception as error:
             print(error)
+
     if not update.from_user:
         return await update.reply_text("I don't know about you sar :(")
+
     await AddUser(bot, update)
+
+    # ✅ Proper indentation here:
     if update.chat.type == enums.ChatType.PRIVATE:
-    if Config.UPDATES_CHANNEL:
-        fsub = await handle_force_subscribe(bot, update)
-        if fsub == 400:
-            return
+        if Config.UPDATES_CHANNEL:
+            fsub = await handle_force_subscribe(bot, update)
+            if fsub == 400:
+                return
 
 
     logger.info(update.from_user)
