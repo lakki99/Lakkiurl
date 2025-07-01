@@ -71,18 +71,11 @@ async def echo(bot, update):
     await AddUser(bot, update)
 
     # ✅ Proper indentation here:
+    if update.chat.type == enums.ChatType.PRIVATE:
     if Config.UPDATES_CHANNEL:
-    try:
         fsub = await handle_force_subscribe(bot, update)
         if fsub == 400:
             return
-    except Exception as e:
-        print(f"[ForceSub Error]: {e}")
-        return await update.reply_text(
-            "😢 Bot is not properly configured or missing access to the Updates Channel.\n\n"
-            "Please contact the admin!",
-            quote=True
-        )
 
 
     logger.info(update.from_user)
