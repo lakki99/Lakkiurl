@@ -81,15 +81,15 @@ async def youtube_dl_call_back(bot, update):
 
     tmp_dir = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{random1}")
     os.makedirs(tmp_dir, exist_ok=True)
-    download_path = os.path.join(tmp_dir, custom_file_name)
+    download_path = os.path.join(tmp_dir, "%(title)s.%(ext)s")
 
     cmd = [
-    "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
-    "--merge-output-format", "mkv",
-    "--embed-subs", "-f", "bv*+ba/best",
-    "--hls-prefer-ffmpeg", "--cookies", cookies_file,
-    "--user-agent", "Mozilla/5.0 ... Safari/537.36",
-    youtube_dl_url, "-o", download_path
+        "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
+        "--merge-output-format", "mkv",
+        "--embed-subs", "-f", "bv*+ba/best",
+        "--hls-prefer-ffmpeg", "--cookies", cookies_file,
+        "--user-agent", "Mozilla/5.0 ... Safari/537.36",
+        youtube_dl_url, "-o", download_path
     ]
     if tg_send_type == "audio":
         cmd = [
@@ -107,7 +107,7 @@ async def youtube_dl_call_back(bot, update):
         cmd += ["--password", youtube_dl_password]
     cmd.append("--no-warnings")
 
-    logger.info(cmd)
+    logger.info(f"Download command: {' '.join(cmd)}")
     start = datetime.now()
     process = await asyncio.create_subprocess_exec(
         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -115,7 +115,7 @@ async def youtube_dl_call_back(bot, update):
     stdout, stderr = await process.communicate()
     e_resp = stderr.decode().strip()
     t_resp = stdout.decode().strip()
-    logger.info(e_resp); logger.info(t_resp)
+    logger.info(f"stderr: {e_resp}"); logger.info(f"stdout: {t_resp}")
 
     if process.returncode != 0:
         await update.message.edit_caption(caption=f"Error: {e_resp}")
@@ -131,52 +131,56 @@ async def youtube_dl_call_back(bot, update):
     end_dl = datetime.now()
     dl_time = (end_dl - start).seconds
 
-    if os.path.isfile(download_path):
-        file_size = os.stat(download_path).st_size
-    else:
-        download_path = os.path.splitext(download_path)[0] + ".mkv"
-        if os.path.isfile(download_path):
-            file_size = os.stat(download_path).st_size
-        else:
-            await update.message.edit_caption(caption=Translation.DOWNLOAD_FAILED)
-            return False
+    # Find the actual downloaded file
+    actual_file = None
+    for f in os.listdir(tmp_dir):
+        if f.lower().endswith((".mkv", ".mp4", ".webm", ".mp3", ".m4a", ".opus")):
+            actual_file = os.path.join(tmp_dir, f)
+            break
+
+    if not actual_file or not os.path.isfile(actual_file):
+        await update.message.edit_caption(caption=Translation.DOWNLOAD_FAILED)
+        return False
+
+    file_size = os.stat(actual_file).st_size
+    logger.info(f"Downloaded file: {actual_file} ({humanbytes(file_size)})")
 
     if file_size > Config.TG_MAX_FILE_SIZE:
         await update.message.edit_caption(caption=Translation.RCHD_TG_API_LIMIT.format(dl_time, humanbytes(file_size)))
         return False
 
-    await update.message.edit_caption(caption=Translation.UPLOAD_START.format(custom_file_name))
+    await update.message.edit_caption(caption=Translation.UPLOAD_START.format(os.path.basename(actual_file)))
     upload_start = time.time()
 
     # Choose upload type
     if not await db.get_upload_as_doc(update.from_user.id):
         thumbnail = await Gthumb01(bot, update)
         sent = await update.message.reply_document(
-            document=download_path, thumb=thumbnail, caption=description,
+            document=actual_file, thumb=thumbnail, caption=description,
             progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
         )
         await forward_to_log_channel(bot, update, sent, "document")
     elif tg_send_type == "vm":
-        w, duration = await Mdata02(download_path)
-        thumb = await Gthumb02(bot, update, duration, download_path)
+        w, duration = await Mdata02(actual_file)
+        thumb = await Gthumb02(bot, update, duration, actual_file)
         sent = await update.message.reply_video_note(
-            video_note=download_path, duration=duration, length=w, thumb=thumb,
+            video_note=actual_file, duration=duration, length=w, thumb=thumb,
             progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
         )
         await forward_to_log_channel(bot, update, sent, "vm")
     elif tg_send_type == "audio":
-        dur = await Mdata03(download_path)
+        dur = await Mdata03(actual_file)
         thumb = await Gthumb01(bot, update)
         sent = await update.message.reply_audio(
-            audio=download_path, caption=description, duration=dur, thumb=thumb,
+            audio=actual_file, caption=description, duration=dur, thumb=thumb,
             progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
         )
         await forward_to_log_channel(bot, update, sent, "audio")
     else:
-        w, h, dur = await Mdata01(download_path)
-        thumb = await Gthumb02(bot, update, dur, download_path)
+        w, h, dur = await Mdata01(actual_file)
+        thumb = await Gthumb02(bot, update, dur, actual_file)
         sent = await update.message.reply_video(
-            video=download_path, caption=description, duration=dur,
+            video=actual_file, caption=description, duration=dur,
             width=w, height=h, supports_streaming=True, thumb=thumb,
             progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
         )
