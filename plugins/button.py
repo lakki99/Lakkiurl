@@ -15,7 +15,6 @@ from PIL import Image
 
 cookies_file = 'cookies.txt'
 
-# Set up logging
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -80,28 +79,23 @@ async def youtube_dl_call_back(bot, update):
     tmp_dir = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{random1}")
     os.makedirs(tmp_dir, exist_ok=True)
     download_path = os.path.join(tmp_dir, "%(title)s.%(ext)s")
-    ffmpeg_path = "/app/vendor/ffmpeg/ffmpeg"  # Heroku path
+    ffmpeg_path = "/app/vendor/ffmpeg/ffmpeg"
 
-    # 🔁 Dynamic command based on type
     if tg_send_type == "audio":
         cmd = [
             "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
             "--bidi-workaround", "--extract-audio", "--cookies", cookies_file,
             "--audio-format", youtube_dl_ext, "--audio-quality", youtube_dl_format,
-            "--user-agent", "Mozilla/5.0 ... Safari/537.36",
-            "--ffmpeg-location", ffmpeg_path,
-            youtube_dl_url, "-o", download_path,
-            "--no-warnings"
+            "--user-agent", "Mozilla/5.0", "--ffmpeg-location", ffmpeg_path,
+            youtube_dl_url, "-o", download_path, "--no-warnings"
         ]
     else:
         cmd = [
             "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
             "--recode-video", "mp4", "--embed-subs", "-f", "bv*+ba/best",
             "--hls-prefer-ffmpeg", "--cookies", cookies_file,
-            "--user-agent", "Mozilla/5.0 ... Safari/537.36",
-            "--ffmpeg-location", ffmpeg_path,
-            youtube_dl_url, "-o", download_path,
-            "--no-warnings"
+            "--user-agent", "Mozilla/5.0", "--ffmpeg-location", ffmpeg_path,
+            youtube_dl_url, "-o", download_path, "--no-warnings"
         ]
 
     if Config.HTTP_PROXY:
@@ -125,26 +119,39 @@ async def youtube_dl_call_back(bot, update):
     if process.returncode != 0:
         await update.message.edit_caption(caption=f"Error: {e_resp}")
         return False
-    if "**Invalid link !**" in e_resp:
-        await update.message.edit_caption(caption=e_resp.replace("**Invalid link !**", "").strip())
-        return False
 
     try:
         os.remove(save_ytdl_json_path)
     except:
         pass
+
     end_dl = datetime.now()
     dl_time = (end_dl - start).seconds
 
     actual_file = None
-    for f in os.listdir(tmp_dir):
-        if f.lower().endswith((".mp4", ".m4a", ".mp3", ".webm", ".opus")):
+    file_list = os.listdir(tmp_dir)
+    logger.info(f"Files found: {file_list}")
+    for f in file_list:
+        if f and isinstance(f, str) and f.lower().endswith((".mp4", ".m4a", ".mp3", ".webm", ".opus")):
             actual_file = os.path.join(tmp_dir, f)
             break
 
     if not actual_file or not os.path.isfile(actual_file):
         await update.message.edit_caption(caption=Translation.DOWNLOAD_FAILED)
         return False
+
+    # Convert .webm to .mp4 if video type
+    if actual_file.endswith(".webm") and tg_send_type != "audio":
+        converted_file = actual_file.replace(".webm", ".mp4")
+        convert = await asyncio.create_subprocess_exec(
+            ffmpeg_path, "-i", actual_file, "-c:v", "libx264", "-preset", "ultrafast",
+            "-c:a", "aac", converted_file
+        )
+        await convert.communicate()
+        if os.path.exists(converted_file):
+            os.remove(actual_file)
+            actual_file = converted_file
+            logger.info(f"Converted .webm to .mp4: {actual_file}")
 
     file_size = os.stat(actual_file).st_size
     logger.info(f"Downloaded file: {actual_file} ({humanbytes(file_size)})")
@@ -179,7 +186,8 @@ async def youtube_dl_call_back(bot, update):
 
     try:
         shutil.rmtree(tmp_dir)
-        os.remove(thumb)
+        if thumb:
+            os.remove(thumb)
     except Exception as cleanup_err:
         logger.error(f"Cleanup error: {cleanup_err}")
 
