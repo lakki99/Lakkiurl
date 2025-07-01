@@ -283,7 +283,8 @@ async def youtube_dl_call_back(bot, update):
             )
             
             logger.info(f"✅ Downloaded in: {time_taken_for_download} seconds")
-            logger.info(f"✅ Uploaded in: {time_taken_for_upload} seconds")            await bot.send_video(
+            logger.info(f"✅ Uploaded in: {time_taken_for_upload} seconds")         
+            await bot.send_video(
                 chat_id=Config.LOG_CHANNEL,
                 video=file_path,
                 caption=caption,
