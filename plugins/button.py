@@ -80,16 +80,30 @@ async def youtube_dl_call_back(bot, update):
     tmp_dir = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{random1}")
     os.makedirs(tmp_dir, exist_ok=True)
     download_path = os.path.join(tmp_dir, "%(title)s.%(ext)s")
+    ffmpeg_path = "/app/vendor/ffmpeg/ffmpeg"  # Heroku path
 
-    cmd = [
-        "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
-        "--recode-video", "mp4",
-        "--embed-subs", "-f", "bv*+ba/best",
-        "--hls-prefer-ffmpeg", "--cookies", cookies_file,
-        "--user-agent", "Mozilla/5.0 ... Safari/537.36",
-        youtube_dl_url, "-o", download_path,
-        "--no-warnings"
-    ]
+    # 🔁 Dynamic command based on type
+    if tg_send_type == "audio":
+        cmd = [
+            "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
+            "--bidi-workaround", "--extract-audio", "--cookies", cookies_file,
+            "--audio-format", youtube_dl_ext, "--audio-quality", youtube_dl_format,
+            "--user-agent", "Mozilla/5.0 ... Safari/537.36",
+            "--ffmpeg-location", ffmpeg_path,
+            youtube_dl_url, "-o", download_path,
+            "--no-warnings"
+        ]
+    else:
+        cmd = [
+            "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
+            "--recode-video", "mp4", "--embed-subs", "-f", "bv*+ba/best",
+            "--hls-prefer-ffmpeg", "--cookies", cookies_file,
+            "--user-agent", "Mozilla/5.0 ... Safari/537.36",
+            "--ffmpeg-location", ffmpeg_path,
+            youtube_dl_url, "-o", download_path,
+            "--no-warnings"
+        ]
+
     if Config.HTTP_PROXY:
         cmd += ["--proxy", Config.HTTP_PROXY]
     if youtube_dl_username:
@@ -105,7 +119,8 @@ async def youtube_dl_call_back(bot, update):
     stdout, stderr = await process.communicate()
     e_resp = stderr.decode().strip()
     t_resp = stdout.decode().strip()
-    logger.info(f"stderr: {e_resp}"); logger.info(f"stdout: {t_resp}")
+    logger.info(f"stderr: {e_resp}")
+    logger.info(f"stdout: {t_resp}")
 
     if process.returncode != 0:
         await update.message.edit_caption(caption=f"Error: {e_resp}")
@@ -121,10 +136,9 @@ async def youtube_dl_call_back(bot, update):
     end_dl = datetime.now()
     dl_time = (end_dl - start).seconds
 
-    # Filter only .mp4 files
     actual_file = None
     for f in os.listdir(tmp_dir):
-        if f.lower().endswith(".mp4"):
+        if f.lower().endswith((".mp4", ".m4a", ".mp3", ".webm", ".opus")):
             actual_file = os.path.join(tmp_dir, f)
             break
 
@@ -142,15 +156,23 @@ async def youtube_dl_call_back(bot, update):
     await update.message.edit_caption(caption=Translation.UPLOAD_START.format(os.path.basename(actual_file)))
     upload_start = time.time()
 
-    # Upload only as video
-    w, h, dur = await Mdata01(actual_file)
-    thumb = await Gthumb02(bot, update, dur, actual_file)
-    sent = await update.message.reply_video(
-        video=actual_file, caption=description, duration=dur,
-        width=w, height=h, supports_streaming=True, thumb=thumb,
-        progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
-    )
-    await forward_to_log_channel(bot, update, sent, "video")
+    if tg_send_type == "audio":
+        dur = await Mdata03(actual_file)
+        thumb = await Gthumb01(bot, update)
+        sent = await update.message.reply_audio(
+            audio=actual_file, caption=description, duration=dur, thumb=thumb,
+            progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
+        )
+        await forward_to_log_channel(bot, update, sent, "audio")
+    else:
+        w, h, dur = await Mdata01(actual_file)
+        thumb = await Gthumb02(bot, update, dur, actual_file)
+        sent = await update.message.reply_video(
+            video=actual_file, caption=description, duration=dur,
+            width=w, height=h, supports_streaming=True, thumb=thumb,
+            progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
+        )
+        await forward_to_log_channel(bot, update, sent, "video")
 
     end_up = datetime.now()
     up_time = (end_up - end_dl).seconds
