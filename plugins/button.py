@@ -5,16 +5,19 @@ import os
 import shutil
 import time
 from datetime import datetime
+from pyrogram import enums
 from pyrogram.types import InputMediaPhoto
 from plugins.config import Config
 from plugins.script import Translation
 from plugins.thumbnail import *
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
 from plugins.functions.ran_text import random_char
+from plugins.database.database import db
 from PIL import Image
 
 cookies_file = 'cookies.txt'
 
+# Set up logging
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -45,7 +48,7 @@ async def youtube_dl_call_back(bot, update):
         return False
 
     youtube_dl_url = update.message.reply_to_message.text
-    custom_file_name = f"{response_json.get('title')}_{youtube_dl_format}.mp4"
+    custom_file_name = f"{response_json.get('title')}_{youtube_dl_format}.{youtube_dl_ext}"
     youtube_dl_username = youtube_dl_password = None
 
     if "|" in youtube_dl_url:
@@ -78,34 +81,32 @@ async def youtube_dl_call_back(bot, update):
 
     tmp_dir = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{random1}")
     os.makedirs(tmp_dir, exist_ok=True)
-    download_path = os.path.join(tmp_dir, "%(title)s.%(ext)s")
-    ffmpeg_path = "/app/vendor/ffmpeg/ffmpeg"
+    download_path = os.path.join(tmp_dir, custom_file_name)
 
+    cmd = [
+        "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
+        "--embed-subs", "-f", f"{youtube_dl_format}bestvideo+bestaudio/best",
+        "--hls-prefer-ffmpeg", "--cookies", cookies_file,
+        "--user-agent", "Mozilla/5.0 ... Safari/537.36",
+        youtube_dl_url, "-o", download_path
+    ]
     if tg_send_type == "audio":
         cmd = [
             "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
             "--bidi-workaround", "--extract-audio", "--cookies", cookies_file,
             "--audio-format", youtube_dl_ext, "--audio-quality", youtube_dl_format,
-            "--user-agent", "Mozilla/5.0", "--ffmpeg-location", ffmpeg_path,
-            youtube_dl_url, "-o", download_path, "--no-warnings"
+            "--user-agent", "Mozilla/5.0 ... Safari/537.36",
+            youtube_dl_url, "-o", download_path
         ]
-    else:
-        cmd = [
-            "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
-            "--recode-video", "mp4", "--embed-subs", "-f", "bv*+ba/best",
-            "--hls-prefer-ffmpeg", "--cookies", cookies_file,
-            "--user-agent", "Mozilla/5.0", "--ffmpeg-location", ffmpeg_path,
-            youtube_dl_url, "-o", download_path, "--no-warnings"
-        ]
-
     if Config.HTTP_PROXY:
         cmd += ["--proxy", Config.HTTP_PROXY]
     if youtube_dl_username:
         cmd += ["--username", youtube_dl_username]
     if youtube_dl_password:
         cmd += ["--password", youtube_dl_password]
+    cmd.append("--no-warnings")
 
-    logger.info(f"Download command: {' '.join(cmd)}")
+    logger.info(cmd)
     start = datetime.now()
     process = await asyncio.create_subprocess_exec(
         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -113,69 +114,68 @@ async def youtube_dl_call_back(bot, update):
     stdout, stderr = await process.communicate()
     e_resp = stderr.decode().strip()
     t_resp = stdout.decode().strip()
-    logger.info(f"stderr: {e_resp}")
-    logger.info(f"stdout: {t_resp}")
+    logger.info(e_resp); logger.info(t_resp)
 
     if process.returncode != 0:
         await update.message.edit_caption(caption=f"Error: {e_resp}")
+        return False
+    if "**Invalid link !**" in e_resp:
+        await update.message.edit_caption(caption=e_resp.replace("**Invalid link !**", "").strip())
         return False
 
     try:
         os.remove(save_ytdl_json_path)
     except:
         pass
-
     end_dl = datetime.now()
     dl_time = (end_dl - start).seconds
 
-    actual_file = None
-    file_list = os.listdir(tmp_dir)
-    logger.info(f"Files found: {file_list}")
-    for f in file_list:
-        if f and isinstance(f, str) and f.lower().endswith((".mp4", ".m4a", ".mp3", ".webm", ".opus")):
-            actual_file = os.path.join(tmp_dir, f)
-            break
-
-    if not actual_file or not os.path.isfile(actual_file):
-        await update.message.edit_caption(caption=Translation.DOWNLOAD_FAILED)
-        return False
-
-    # Convert .webm to .mp4 if video type
-    if actual_file.endswith(".webm") and tg_send_type != "audio":
-        converted_file = actual_file.replace(".webm", ".mp4")
-        convert = await asyncio.create_subprocess_exec(
-            ffmpeg_path, "-i", actual_file, "-c:v", "libx264", "-preset", "ultrafast",
-            "-c:a", "aac", converted_file
-        )
-        await convert.communicate()
-        if os.path.exists(converted_file):
-            os.remove(actual_file)
-            actual_file = converted_file
-            logger.info(f"Converted .webm to .mp4: {actual_file}")
-
-    file_size = os.stat(actual_file).st_size
-    logger.info(f"Downloaded file: {actual_file} ({humanbytes(file_size)})")
+    if os.path.isfile(download_path):
+        file_size = os.stat(download_path).st_size
+    else:
+        download_path = os.path.splitext(download_path)[0] + ".mkv"
+        if os.path.isfile(download_path):
+            file_size = os.stat(download_path).st_size
+        else:
+            await update.message.edit_caption(caption=Translation.DOWNLOAD_FAILED)
+            return False
 
     if file_size > Config.TG_MAX_FILE_SIZE:
         await update.message.edit_caption(caption=Translation.RCHD_TG_API_LIMIT.format(dl_time, humanbytes(file_size)))
         return False
 
-    await update.message.edit_caption(caption=Translation.UPLOAD_START.format(os.path.basename(actual_file)))
+    await update.message.edit_caption(caption=Translation.UPLOAD_START.format(custom_file_name))
     upload_start = time.time()
 
-    if tg_send_type == "audio":
-        dur = await Mdata03(actual_file)
+    # Choose upload type
+    if not await db.get_upload_as_doc(update.from_user.id):
+        thumbnail = await Gthumb01(bot, update)
+        sent = await update.message.reply_document(
+            document=download_path, thumb=thumbnail, caption=description,
+            progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
+        )
+        await forward_to_log_channel(bot, update, sent, "document")
+    elif tg_send_type == "vm":
+        w, duration = await Mdata02(download_path)
+        thumb = await Gthumb02(bot, update, duration, download_path)
+        sent = await update.message.reply_video_note(
+            video_note=download_path, duration=duration, length=w, thumb=thumb,
+            progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
+        )
+        await forward_to_log_channel(bot, update, sent, "vm")
+    elif tg_send_type == "audio":
+        dur = await Mdata03(download_path)
         thumb = await Gthumb01(bot, update)
         sent = await update.message.reply_audio(
-            audio=actual_file, caption=description, duration=dur, thumb=thumb,
+            audio=download_path, caption=description, duration=dur, thumb=thumb,
             progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
         )
         await forward_to_log_channel(bot, update, sent, "audio")
     else:
-        w, h, dur = await Mdata01(actual_file)
-        thumb = await Gthumb02(bot, update, dur, actual_file)
+        w, h, dur = await Mdata01(download_path)
+        thumb = await Gthumb02(bot, update, dur, download_path)
         sent = await update.message.reply_video(
-            video=actual_file, caption=description, duration=dur,
+            video=download_path, caption=description, duration=dur,
             width=w, height=h, supports_streaming=True, thumb=thumb,
             progress=progress_for_pyrogram, progress_args=(Translation.UPLOAD_START, update.message, upload_start)
         )
@@ -186,8 +186,7 @@ async def youtube_dl_call_back(bot, update):
 
     try:
         shutil.rmtree(tmp_dir)
-        if thumb:
-            os.remove(thumb)
+        os.remove(thumb)
     except Exception as cleanup_err:
         logger.error(f"Cleanup error: {cleanup_err}")
 
