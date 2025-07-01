@@ -66,10 +66,11 @@ async def echo(bot, update):
     if not update.from_user:
         return await update.reply_text("I don't know about you sar :(")
     await AddUser(bot, update)
-    if Config.UPDATES_CHANNEL and update.chat.type == "private":
+    if Config.UPDATES_CHANNEL:
+    if update.chat.type == enums.ChatType.PRIVATE:
         fsub = await handle_force_subscribe(bot, update)
         if fsub == 400:
-           return
+            return
 
 
     logger.info(update.from_user)
