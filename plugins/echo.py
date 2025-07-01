@@ -1,6 +1,3 @@
-# ©️ LISA-KOREA | @LISA_FAN_LK | NT_BOT_CHANNEL | TG-SORRY
-
-
 import logging
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -48,7 +45,6 @@ async def echo(bot, update):
                 reply_markup=InlineKeyboardMarkup(button)
             )
             return
-
     if Config.LOG_CHANNEL:
         try:
             log_message = await update.forward(Config.LOG_CHANNEL)
@@ -64,18 +60,13 @@ async def echo(bot, update):
             )
         except Exception as error:
             print(error)
-
     if not update.from_user:
         return await update.reply_text("I don't know about you sar :(")
-
     await AddUser(bot, update)
-
-    # ✅ Proper indentation here:
-    if update.chat.type == enums.ChatType.PRIVATE:
-    if Config.UPDATES_CHANNEL:
-        fsub = await handle_force_subscribe(bot, update)
-        if fsub == 400:
-            return
+    if Config.UPDATES_CHANNEL and update.chat.type == "private":
+    fsub = await handle_force_subscribe(bot, update)
+    if fsub == 400:
+        return
 
 
     logger.info(update.from_user)
@@ -289,4 +280,4 @@ async def echo(bot, update):
             reply_markup=reply_markup,
             disable_web_page_preview=True,
             reply_to_message_id=update.id
-        )
+)
