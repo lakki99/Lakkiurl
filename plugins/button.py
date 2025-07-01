@@ -84,11 +84,12 @@ async def youtube_dl_call_back(bot, update):
     download_path = os.path.join(tmp_dir, custom_file_name)
 
     cmd = [
-        "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
-        "--embed-subs", "-f", "bv*+ba/best",
-        "--hls-prefer-ffmpeg", "--cookies", cookies_file,
-        "--user-agent", "Mozilla/5.0 ... Safari/537.36",
-        youtube_dl_url, "-o", download_path
+    "yt-dlp", "-c", "--max-filesize", str(Config.TG_MAX_FILE_SIZE),
+    "--merge-output-format", "mkv",
+    "--embed-subs", "-f", "bv*+ba/best",
+    "--hls-prefer-ffmpeg", "--cookies", cookies_file,
+    "--user-agent", "Mozilla/5.0 ... Safari/537.36",
+    youtube_dl_url, "-o", download_path
     ]
     if tg_send_type == "audio":
         cmd = [
