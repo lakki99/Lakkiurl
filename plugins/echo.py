@@ -195,53 +195,37 @@ async def echo(bot, update):
         if "duration" in response_json:
             duration = response_json["duration"]
         if "formats" in response_json:
-            for formats in response_json["formats"]:
-                format_id = formats.get("format_id")
-                format_string = formats.get("format_note")
-                if format_string is None:
-                    format_string = formats.get("format")
-                if "DASH" in format_string.upper():
-                    continue
-          
-                format_ext = formats.get("ext")
-                if formats.get('filesize'):
-                    size = formats['filesize']
-                elif formats.get('filesize_approx'):
-                    size = formats['filesize_approx']
-                else:
-                    size = 0
-                cb_string_video = "{}|{}|{}|{}".format(
-                    "video", format_id, format_ext, randem)
-                cb_string_file = "{}|{}|{}|{}".format(
-                    "file", format_id, format_ext, randem)
-                if format_string is not None and not "audio only" in format_string:
-                    ikeyboard = [
-                        InlineKeyboardButton(
-                            "📁 " + format_string + " " + format_ext + " " + humanbytes(size) + " ",
-                            callback_data=(cb_string_video).encode("UTF-8")
-                        )
-                    ]
-                    """if duration is not None:
-                        cb_string_video_message = "{}|{}|{}|{}|{}".format(
-                            "vm", format_id, format_ext, ran, randem)
-                        ikeyboard.append(
-                            InlineKeyboardButton(
-                                "VM",
-                                callback_data=(
-                                    cb_string_video_message).encode("UTF-8")
-                            )
-                        )"""
-                else:
-                    # special weird case :\
-                    ikeyboard = [
-                        InlineKeyboardButton(
-                            "📁 [" +
-                            "] ( " +
-                            humanbytes(size) + " )",
-                            callback_data=(cb_string_video).encode("UTF-8")
-                        )
-                    ]
-                inline_keyboard.append(ikeyboard)
+            if "formats" in response_json:
+    for formats in response_json["formats"]:  
+        format_id = formats.get("format_id")  
+        format_ext = formats.get("ext", "mp4")  
+  
+        # Filter: must contain both video & audio  
+        if formats.get("acodec") == "none" or formats.get("vcodec") == "none":  
+            continue  
+  
+        # Skip DASH fragments  
+        if "DASH" in str(formats.get("format_note", "")).upper():  
+            continue  
+  
+        # Get size  
+        size = formats.get("filesize") or formats.get("filesize_approx") or 0  
+  
+        # Get resolution  
+        height = formats.get("height", "")  
+        resolution = f"{height}p" if height else formats.get("format_note", "Video")  
+  
+        # Button callback  
+        cb_string_video = "{}|{}|{}|{}".format("video", format_id, format_ext, randem)  
+  
+        # Final button  
+        ikeyboard = [  
+            InlineKeyboardButton(  
+                f"📁 {resolution} {format_ext} {humanbytes(size)}",  
+                callback_data=cb_string_video.encode("UTF-8")  
+            )  
+        ]  
+        inline_keyboard.append(ikeyboard)
             if duration is not None:
                 cb_string_64 = "{}|{}|{}|{}".format("audio", "64k", "mp3", randem)
                 cb_string_128 = "{}|{}|{}|{}".format("audio", "128k", "mp3", randem)
