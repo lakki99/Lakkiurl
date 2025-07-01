@@ -25,12 +25,16 @@ from pyrogram import types, errors
 
 
 
-@Client.on_message(filters.command(["start"]) & (filters.private | filters.group))
+@Client.on_message(filters.command(["start"]))
 async def start(bot, update):
-    if Config.UPDATES_CHANNEL is not None and update.chat.type == "private":
-        fsub = await handle_force_subscribe(bot, update)
-        if fsub == 400:
-            return
+    # ✅ Only do force subscribe in private chats
+    if update.chat.type == "private":
+        if Config.UPDATES_CHANNEL is not None:
+            fsub = await handle_force_subscribe(bot, update)
+            if fsub == 400:
+                return
+
+    # ✅ Handle /start <data>
     if len(update.command) != 2:
         await AddUser(bot, update)
         await update.reply_text(
@@ -38,6 +42,8 @@ async def start(bot, update):
             reply_markup=Translation.START_BUTTONS,
         )
         return
+
+    # ✅ Handle verify links
     data = update.command[1]
     if data.split("-", 1)[0] == "verify":
         userid = data.split("-", 2)[1]
@@ -48,7 +54,7 @@ async def start(bot, update):
                 protect_content=True
             )
         is_valid = await check_token(bot, userid, token)
-        if is_valid == True:
+        if is_valid:
             await update.reply_text(
                 text=f"<b>Hᴇʏ {update.from_user.mention} 👋,\nʏᴏᴜ Aʀᴇ Sᴜᴄᴄᴇssғᴜʟʟʏ Vᴇʀɪғɪᴇᴅ !\n\nNᴏᴡ Yᴏᴜ Uᴘʟᴏᴀᴅ Fɪʟᴇs Aɴᴅ Vɪᴅᴇᴏs Tɪʟʟ Tᴏᴅᴀʏ Mɪᴅɴɪɢʜᴛ.</b>",
                 protect_content=True
